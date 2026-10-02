@@ -49,10 +49,10 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 
 ### 使用方法（exe）
 
-需要准备：存档文件夹（整个 `54430004` 文件夹或其中一个存档文件夹）；源主机的 XboxHDKey；目标主机的 XboxHDKey（同一台主机就留空）。
+需要准备：存档文件夹（整个 `54430004` 文件夹或其中一个存档文件夹）；目标主机的 XboxHDKey（必填）；源主机的 XboxHDKey（可选，只用来校验原存档，不填也能转换）。
 
 1. 「源存档文件夹」选存档文件夹，或者整个 `54430004` 文件夹（会转换里面所有存档）。输出文件夹会自动填好，「转换为」会自动选成另一个版本。
-2. 填源主机的 HD Key。存档要搬到别的主机，就再填目标主机的 HD Key。
+2. 填目标主机的 HD Key。源主机的 HD Key 可填可不填，填了会先校验原存档的签名；只填源 Key 则视为同一台主机。
 3. 点「检查」，确认每个存档的签名都是 `111/111 ✓`。
 4. 点「转换」。结果写到 `输出文件夹\54430004\<新文件夹名>\`，原存档不动。输出文件夹已存在且不为空时不会覆盖。
 5. 把输出里的整个 `54430004` 文件夹放到目标主机的 `UDATA` 下。
@@ -63,7 +63,7 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 
 ```
 python ff1_convert.py info    54430004 --hdkey SRC_HDKEY
-python ff1_convert.py convert 54430004 --to us --hdkey SRC_HDKEY [--dst-hdkey DST_HDKEY] --out converted
+python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SRC_HDKEY] --out converted
 ```
 
 `54430004` 可以换成单个存档文件夹，也可以写多个。读不出存档编号时用 `--slot N` 指定。
@@ -136,10 +136,10 @@ The tool remaps those IDs by file name, fixes the header checksum, re-signs with
 
 ### Usage (exe)
 
-You need: the save folder (the whole `54430004` folder or one save folder in it), the source console's XboxHDKey, and the target console's XboxHDKey (leave empty for the same console).
+You need: the save folder (the whole `54430004` folder or one save folder in it), and the target console's XboxHDKey (required); the source console's XboxHDKey is optional and only verifies the original signature.
 
 1. Pick the source save folder, or the whole `54430004` folder to convert every save in it. The output folder is filled in and "Convert to" is set to the other version.
-2. Enter the source HD key, and the target HD key if the save moves to another console.
+2. Enter the target HD key. The source HD key is optional and only verifies the original signature; if you fill only the source key, it is used as the target too.
 3. Click **Check**; every save should show `signature 111/111 ✓`.
 4. Click **Convert**. Results go to `<output>\54430004\<new folder>\`; originals are not touched and an existing non-empty folder is never overwritten.
 5. Copy the whole `54430004` folder from the output into the target console's `UDATA`.
@@ -150,7 +150,7 @@ Choosing the same version as the source only re-signs, which moves a save betwee
 
 ```
 python ff1_convert.py info    54430004 --hdkey SRC_HDKEY
-python ff1_convert.py convert 54430004 --to us --hdkey SRC_HDKEY [--dst-hdkey DST_HDKEY] --out converted
+python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SRC_HDKEY] --out converted
 ```
 
 Pass one or more save folders or `54430004` folders. Use `--slot N` if the slot number cannot be read from `SaveMeta.xbx`.

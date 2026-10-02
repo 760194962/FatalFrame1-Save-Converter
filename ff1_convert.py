@@ -5,7 +5,7 @@ JP <-> US save converter. Python 3, standard library only.
 
   python ff1_convert.py info    SAVE_DIR [--hdkey KEY]
   python ff1_convert.py convert SAVE_DIR [SAVE_DIR ...] --to us|jp \
-         --hdkey SRC_KEY [--dst-hdkey DST_KEY] [--out OUT_DIR]
+         --dst-hdkey DST_KEY [--hdkey SRC_KEY] [--out OUT_DIR]
 
 SAVE_DIR is one save folder (holding G or N) or a folder that contains save
 folders (e.g. the 54430004 folder). Output goes to OUT_DIR/54430004/<folder>/.
@@ -112,7 +112,7 @@ def find_saves(paths):
 def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print):
     """Returns the output folder. Raises ValueError on any problem; nothing is written then."""
     total = NBLOCK + 1
-    ok = save.sig_ok(src_key)
+    ok = save.sig_ok(src_key) if src_key else total  # source key is optional: it only verifies the old signature
     if ok != total:
         raise ValueError('signature check failed (%d/%d blocks). Wrong source HD key, or not a JP/US save '
                          '(PAL saves are not supported).' % (ok, total))
@@ -150,8 +150,8 @@ def main(argv=None):
     c = sub.add_parser('convert', help='convert save folders')
     c.add_argument('saves', nargs='+')
     c.add_argument('--to', required=True, choices=['us', 'jp'])
-    c.add_argument('--hdkey', required=True, help='HD key of the console the save comes from')
-    c.add_argument('--dst-hdkey', help='HD key of the target console (default: same as --hdkey)')
+    c.add_argument('--hdkey', help='HD key of the source console (optional; only verifies the old signature)')
+    c.add_argument('--dst-hdkey', help='HD key of the target console (default: same as --hdkey; one of the two is required)')
     c.add_argument('--out', default='converted', help='output folder (default: ./converted)')
     c.add_argument('--slot', type=int, help='slot number to use for the new save name')
     args = ap.parse_args(argv)
@@ -167,7 +167,9 @@ def main(argv=None):
                 if key: print('  signature %d/%d blocks ok with this HD key' % (s.sig_ok(key), NBLOCK + 1))
                 print('  loaded files: %s' % ' '.join('%#x' % f for i, f, t in s.resources()))
             return 0
-        src = parse_hdkey(args.hdkey); dst = parse_hdkey(args.dst_hdkey) if args.dst_hdkey else src
+        src = parse_hdkey(args.hdkey) if args.hdkey else None
+        dst = parse_hdkey(args.dst_hdkey) if args.dst_hdkey else src
+        if not dst: raise ValueError('give --dst-hdkey (or --hdkey if the target console is the same)')
         for s in saves: convert(s, args.to, src, dst, args.out, args.slot)
         return 0
     except ValueError as e:

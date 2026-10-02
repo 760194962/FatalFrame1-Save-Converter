@@ -22,13 +22,13 @@ enum { ID_SRC = 100, ID_SRC_BR, ID_HD, ID_HD2, ID_US, ID_JP, ID_OUT, ID_OUT_BR, 
 enum { S_L_SRC, S_L_HD, S_L_HD2, S_L_TO, S_US, S_JP, S_L_OUT, S_BROWSE, S_CHECK, S_CONVERT, S_LANG,
        S_INTRO, S_PICK_SRC, S_PICK_OUT, S_NOSAVES, S_BADKEY, S_BADKEY2, S_NOSRC, S_NOOUT,
        S_OPENFAIL, S_BADSIZE, S_FOUND, S_ITEM, S_SIGOK, S_SIGBAD, S_SIGNOKEY, S_CKBAD, S_NOSLOT,
-       S_UNMAPPED, S_EXISTS, S_WRITEFAIL, S_DONE1, S_SAMEREGION, S_SUMMARY, S_COUNT };
+       S_UNMAPPED, S_EXISTS, S_WRITEFAIL, S_DONE1, S_SAMEREGION, S_SUMMARY, S_NOTARGET, S_COUNT };
 
 static const wchar_t *STR[2][S_COUNT] = {
 { /* Chinese */
   L"\x6e90\x5b58\x6863\x6587\x4ef6\x5939",                        /* 源存档文件夹 */
-  L"\x6e90\x4e3b\x673a HD Key",                                     /* 源主机 HD Key */
-  L"\x76ee\x6807\x4e3b\x673a HD Key\xff08\x7559\x7a7a = \x540c\x4e0a\xff09", /* 目标主机 HD Key（留空 = 同上） */
+  L"\x6e90\x4e3b\x673a HD Key\xff08\x53ef\x9009\xff0c\x4ec5\x6821\x9a8c\xff09",  /* 源主机 HD Key（可选，仅校验） */
+  L"\x76ee\x6807\x4e3b\x673a HD Key\xff08\x7559\x7a7a = \x540c\x6e90\xff09", /* 目标主机 HD Key（留空 = 同源） */
   L"\x8f6c\x6362\x4e3a",                                            /* 转换为 */
   L"\x7f8e\x7248 (US, \x6587\x4ef6 G)",                             /* 美版 (US, 文件 G) */
   L"\x65e5\x7248 (JP, \x6587\x4ef6 N)",                             /* 日版 (JP, 文件 N) */
@@ -64,9 +64,10 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"  \xff08\x6e90\x548c\x76ee\x6807\x662f\x540c\x4e00\x7248\x672c\xff0c\x53ea\x91cd\x7b7e\xff09\r\n", /* （源和目标是同一版本，只重签） */
   L"\x5b8c\x6210\xff1a%d \x4e2a\x6210\x529f\xff0c%d \x4e2a\x5931\x8d25\x3002\x628a\x8f93\x51fa\x91cc\x7684 54430004 \x6587\x4ef6\x5939\x6574\x4e2a\x653e\x5230\x76ee\x6807\x4e3b\x673a\x3002\r\n\r\n",
   /* 完成：%d 个成功，%d 个失败。把输出里的 54430004 文件夹整个放到目标主机。 */
+  L"\x8bf7\x586b\x76ee\x6807\x4e3b\x673a\x7684 HD Key\x3002\r\n", /* 请填目标主机的 HD Key。 */
 },
 { /* English */
-  L"Source save folder", L"Source HD key", L"Target HD key (empty = same)", L"Convert to",
+  L"Source save folder", L"Source HD key (optional, check only)", L"Target HD key (empty = same as source)", L"Convert to",
   L"US (file G)", L"JP (file N)", L"Output folder", L"Browse\x2026", L"Check", L"Convert", L"\x4e2d\x6587",
   L"Pick one save folder (holding G or N), or the whole 54430004 folder.\r\n"
   L"Originals are not changed; results go to <output>\\54430004\\<new folder name>.\r\n"
@@ -89,6 +90,7 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"  \x2192 %ls \"%ls\", %d file id(s) remapped, re-signed\r\n     %ls\r\n",
   L"  (same version as source: re-sign only)\r\n",
   L"Done: %d converted, %d failed. Copy the whole 54430004 folder from the output to the target console.\r\n\r\n",
+  L"Enter the target HD key.\r\n",
 } };
 
 static int lang;
@@ -173,9 +175,9 @@ static void do_work(int convert) {
     HCURSOR old;
     get_text(ID_SRC, src, MAX_PATH); trim_slash(src);
     if (!src[0]) { logw(S(S_NOSRC)); return; }
-    if (get_key(ID_HD, k1, &e1) < 0 || (convert && e1)) { logw(S(S_BADKEY)); return; }
+    if (get_key(ID_HD, k1, &e1) < 0) { logw(S(S_BADKEY)); return; }
     if (get_key(ID_HD2, k2, &e2) < 0) { logw(S(S_BADKEY2)); return; }
-    if (e2) memcpy(k2, k1, 16);
+    if (e2) { if (convert && e1) { logw(S(S_NOTARGET)); return; } memcpy(k2, k1, 16); }
     get_text(ID_OUT, out, MAX_PATH); trim_slash(out);
     if (convert && !out[0]) { logw(S(S_NOOUT)); return; }
     to = IsDlgButtonChecked(hMain, ID_JP) == BST_CHECKED ? FF1_JP : FF1_US;
@@ -201,7 +203,7 @@ static void do_work(int convert) {
         if (!e1) { sig = ff1_sig_count(b, k1); logw(S(sig == FF1_NSIG ? S_SIGOK : S_SIGBAD), sig, FF1_NSIG); }
         else logw(S(S_SIGNOKEY));
         if (!convert) { free(b); continue; }
-        if (sig != FF1_NSIG) { free(b); bad++; continue; }
+        if (!e1 && sig != FF1_NSIG) { free(b); bad++; continue; }
         if (!ck) { logw(S(S_CKBAD)); free(b); bad++; continue; }
         if (!slot) { logw(S(S_NOSLOT)); free(b); bad++; continue; }
         if (region == to) logw(S(S_SAMEREGION));
