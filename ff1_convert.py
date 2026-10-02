@@ -20,10 +20,10 @@ SAVE_SIZE = 0x2945CC0
 HEADER = 0x5414                     # 4-byte checksum + 29 game globals
 BLOCK, NBLOCK = 0x60000, 0x6E       # photo album blocks
 RES_TABLE, RES_COUNT = 0x3C, 40     # loaded-resource table: u16 file id, u8 type, u8 flag, u32 addr
-# model (8), animation (9) and sound bank (2) entries are not carried across versions: a JP
+# model (8), animation (9, 10) and sound bank (2) entries are not carried across versions: a JP
 # clear save hangs the US game on load when both kinds are kept, and the game reloads them
 # by itself when they are missing (tested on Xbox 360 and xemu).
-RES_DROPPED = (2, 8, 9)
+RES_DROPPED = (2, 8, 9, 10)   # 10: animation tied to a model by its flag byte
 
 REGIONS = {
     'us': {'file': 'G', 'name': 'Game No.%d', 'label': 'US'},

@@ -29,7 +29,7 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 - 两版 `default.xbe` 证书里的存档签名密钥相同：`BD1E1C7B4DB4BA8D49E37EA24F80F14E`。
 - 存档文件 `0x2945CC0` 字节，分成 1 个开头块（`0x5414` 字节）和 110 个数据块（各 `0x60000` 字节，前 100 个是相册照片，读档时写到 `Z:\ffphoto###`），每块后面跟 20 字节非漫游签名。
 - 开头块由 29 个游戏全局变量拼成，两版的数量、大小、顺序完全一样。开头 4 字节是开头块其余字节的和。
-- 开头块 `0x3C` 起是 40 条已加载文件记录（每条 8 字节：`u16 文件序号, u8 类型, u8 标志, u32 地址`）。地图、事件、敌人这类记录改文件序号；模型（类型 8）、动画（类型 9）、音效（类型 2）的记录直接清空，见下一条。
+- 开头块 `0x3C` 起是 40 条已加载文件记录（每条 8 字节：`u16 文件序号, u8 类型, u8 标志, u32 地址`）。地图、事件、敌人这类记录改文件序号；模型（类型 8）、动画（类型 9、10）、音效（类型 2）的记录直接清空，见下一条。
 - 存档文件夹名由存档名算出（XCreateSaveGame）：对 UTF-16 存档名做 `h = (h * 0x10000 + c) mod (2^48 - 59)`，输出 12 位十六进制。
 - 日→美实测：4 个日版存档转换后在 Xbox 360 上用美版游戏读档正常。
 - 日版通关档（第 4 章最终战）只改序号的话，美版读档会卡在开头画面（Xbox 360 和 xemu 都卡）。只要同时保留模型/动画和音效记录就会卡，任意清空一类就能进。清空这几类后游戏会自己重新加载，实测画面和声音都正常。原因还没完全查清，所以跨版本转换时一律清空这三类。
@@ -117,7 +117,7 @@ The tool remaps those IDs by file name, fixes the header checksum, re-signs with
 - The save signature key in both `default.xbe` certificates is `BD1E1C7B4DB4BA8D49E37EA24F80F14E`.
 - Save file is `0x2945CC0` bytes: one header block (`0x5414` bytes) and 110 data blocks (`0x60000` bytes each; the first 100 are album photos, written to `Z:\ffphoto###` on load), each followed by a 20-byte non-roamable signature.
 - The header is 29 game globals; count, sizes and order are identical in both builds. Its first 4 bytes are the byte sum of the rest.
-- Header offset `0x3C`: 40 loaded-file records (8 bytes: `u16 file id, u8 type, u8 flag, u32 address`). Map, event and enemy records get their file IDs remapped; model (type 8), animation (type 9) and sound bank (type 2) records are cleared, see below.
+- Header offset `0x3C`: 40 loaded-file records (8 bytes: `u16 file id, u8 type, u8 flag, u32 address`). Map, event and enemy records get their file IDs remapped; model (type 8), animation (types 9, 10) and sound bank (type 2) records are cleared, see below.
 - Save folder name (XCreateSaveGame): over the UTF-16 save name, `h = (h * 0x10000 + c) mod (2^48 - 59)`, printed as 12 hex digits.
 - JP→US: four JP saves converted this way load in the US game on Xbox 360 (backward compatibility).
 - A JP clear save (final chapter) with only the IDs remapped hangs the US game on its opening screen (Xbox 360 and xemu). It hangs only while both the model/animation and the sound records are kept; clearing either kind is enough. With them cleared the game reloads them itself; picture and sound were fine in testing. The root cause is not fully known, so cross-version conversion always clears these three kinds.

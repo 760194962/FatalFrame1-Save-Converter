@@ -75,10 +75,10 @@ int ff1_checksum_ok(const uint8_t *save) { return rd32(save) == hsum(save); }
 
 #define RES_TABLE 0x3C
 #define RES_COUNT 40
-/* model (8), animation (9) and sound bank (2) entries are not carried across versions:
+/* model (8), animation (9, 10) and sound bank (2) entries are not carried across versions:
    a JP clear save hangs the US game on load when both kinds are kept, and the game
    reloads them by itself when they are missing (tested on Xbox 360 and xemu). */
-static int res_dropped(int type) { return type == 2 || type == 8 || type == 9; }
+static int res_dropped(int type) { return type == 2 || type == 8 || type == 9 || type == 10; }
 int ff1_resources(const uint8_t *save, int ids[40]) {
     int i, n = 0;
     for (i = 0; i < RES_COUNT; i++) { int id = save[RES_TABLE+8*i] | save[RES_TABLE+8*i+1] << 8; if (id != 0xFFFF) ids[n++] = id; }
