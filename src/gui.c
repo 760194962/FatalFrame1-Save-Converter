@@ -27,8 +27,8 @@ enum { S_L_SRC, S_L_HD, S_L_HD2, S_L_TO, S_US, S_JP, S_L_OUT, S_BROWSE, S_CHECK,
 static const wchar_t *STR[2][S_COUNT] = {
 { /* Chinese */
   L"\x6e90\x5b58\x6863\x6587\x4ef6\x5939",                        /* 源存档文件夹 */
-  L"\x6e90\x4e3b\x673a HD Key\xff08\x53ef\x9009\xff0c\x4ec5\x6821\x9a8c\xff09",  /* 源主机 HD Key（可选，仅校验） */
-  L"\x76ee\x6807\x4e3b\x673a HD Key\xff08\x7559\x7a7a = \x540c\x6e90\xff09", /* 目标主机 HD Key（留空 = 同源） */
+  L"\x6e90\x4e3b\x673a HD Key\xff08\x53ef\x9009\xff09",  /* 源主机 HD Key（可选） */
+  L"\x76ee\x6807\x4e3b\x673a HD Key", /* 目标主机 HD Key */
   L"\x8f6c\x6362\x4e3a",                                            /* 转换为 */
   L"\x7f8e\x7248 (US, \x6587\x4ef6 G)",                             /* 美版 (US, 文件 G) */
   L"\x65e5\x7248 (JP, \x6587\x4ef6 N)",                             /* 日版 (JP, 文件 N) */
@@ -39,7 +39,8 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"English",
   L"\x9009\x4e00\x4e2a\x5b58\x6863\x6587\x4ef6\x5939\xff08\x91cc\x9762\x6709 G \x6216 N\xff09\xff0c\x6216\x8005\x6574\x4e2a 54430004 \x6587\x4ef6\x5939\x3002\r\n"
   L"\x539f\x6587\x4ef6\x4e0d\x4f1a\x88ab\x4fee\x6539\xff0c\x7ed3\x679c\x5199\x5230 \x8f93\x51fa\x6587\x4ef6\x5939\\54430004\\<\x65b0\x6587\x4ef6\x5939\x540d>\x3002\r\n"
-  L"\x6b27\x7248 (PAL) \x5b58\x6863\x4e0d\x652f\x6301\x3002\r\n\r\n",
+  L"\x6b27\x7248 (PAL) \x5b58\x6863\x4e0d\x652f\x6301\x3002\r\n"
+  L"\x6e90 HD Key \x53ea\x7528\x6765\x6821\x9a8c\xff1b\x53ea\x586b\x4e00\x4e2a Key \x65f6\xff0c\x6e90\x548c\x76ee\x6807\x5171\x7528\x3002\r\n\r\n",
   /* 选一个存档文件夹（里面有 G 或 N），或者整个 54430004 文件夹。 原文件不会被修改，结果写到 输出文件夹\54430004\<新文件夹名>。 欧版 (PAL) 存档不支持。 */
   L"\x9009\x62e9\x6e90\x5b58\x6863\x6587\x4ef6\x5939",              /* 选择源存档文件夹 */
   L"\x9009\x62e9\x8f93\x51fa\x6587\x4ef6\x5939",                    /* 选择输出文件夹 */
@@ -67,11 +68,12 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"\x8bf7\x586b\x76ee\x6807\x4e3b\x673a\x7684 HD Key\x3002\r\n", /* 请填目标主机的 HD Key。 */
 },
 { /* English */
-  L"Source save folder", L"Source HD key (optional, check only)", L"Target HD key (empty = same as source)", L"Convert to",
+  L"Source save folder", L"Source HD key (optional)", L"Target HD key", L"Convert to",
   L"US (file G)", L"JP (file N)", L"Output folder", L"Browse\x2026", L"Check", L"Convert", L"\x4e2d\x6587",
   L"Pick one save folder (holding G or N), or the whole 54430004 folder.\r\n"
   L"Originals are not changed; results go to <output>\\54430004\\<new folder name>.\r\n"
-  L"PAL saves are not supported.\r\n\r\n",
+  L"PAL saves are not supported.\r\n"
+  L"Source HD key only verifies the save; with just one key, it is used for both.\r\n\r\n",
   L"Choose the source save folder", L"Choose the output folder",
   L"No saves found (need folders that contain a G or N file).\r\n",
   L"Source HD key must be 32 hex digits.\r\n", L"Target HD key is not valid.\r\n",
@@ -269,7 +271,7 @@ static HWND mk(const wchar_t *cls, DWORD style, DWORD ex, int id) {
     SendMessageW(h, WM_SETFONT, (WPARAM)hFont, TRUE); return h;
 }
 static void layout(int W, int H) {
-    int m = DP(12), lw = DP(230), bh = DP(26), bw = DP(96), gap = DP(8), y = m, x2 = m + lw, ew = W - x2 - m - bw - gap;
+    int m = DP(12), lw = DP(280), bh = DP(26), bw = DP(96), gap = DP(8), y = m, x2 = m + lw, ew = W - x2 - m - bw - gap;
     #define MV(id, x, yy, w, h) MoveWindow(GetDlgItem(hMain, id), x, yy, w, h, TRUE)
     MV(ID_L_SRC, m, y + DP(4), lw, bh); MV(ID_SRC, x2, y, ew, bh); MV(ID_SRC_BR, x2 + ew + gap, y, bw, bh); y += bh + gap;
     MV(ID_L_HD, m, y + DP(4), lw, bh); MV(ID_HD, x2, y, ew, bh); y += bh + gap;
