@@ -12,7 +12,7 @@ folders (e.g. the 54430004 folder). Output goes to OUT_DIR/54430004/<folder>/.
 """
 import argparse, hmac, hashlib, os, re, shutil, struct, sys
 
-VERSION = '1.0'
+VERSION = '1.1'
 TITLE_ID = '54430004'
 XBOX_CERT_KEY = bytes.fromhex('5C0733AE0401F7E8BA7993FDCD2F1FE0')
 TITLE_KEY = bytes.fromhex('BD1E1C7B4DB4BA8D49E37EA24F80F14E')   # same in JP and US default.xbe

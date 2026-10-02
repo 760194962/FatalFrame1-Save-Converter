@@ -14,7 +14,7 @@
 #include <wchar.h>
 #include "ff1_core.h"
 
-#define APP_TITLE L"FatalFrame1 Save Converter 1.0  -  \x96f6 ~zero~ / Fatal Frame (Xbox) JP \x21c4 US"
+#define APP_TITLE L"FatalFrame1 Save Converter 1.1  -  \x96f6 ~zero~ / Fatal Frame (Xbox) JP \x21c4 US"
 
 enum { ID_SRC = 100, ID_SRC_BR, ID_HD, ID_HD2, ID_US, ID_JP, ID_OUT, ID_OUT_BR, ID_CHECK, ID_CONVERT, ID_LANG, ID_LOG,
        ID_L_SRC, ID_L_HD, ID_L_HD2, ID_L_TO, ID_L_OUT, ID_CLEAR };
