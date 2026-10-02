@@ -20,6 +20,10 @@ SAVE_SIZE = 0x2945CC0
 HEADER = 0x5414                     # 4-byte checksum + 29 game globals
 BLOCK, NBLOCK = 0x60000, 0x6E       # photo album blocks
 RES_TABLE, RES_COUNT = 0x3C, 40     # loaded-resource table: u16 file id, u8 type, u8 flag, u32 addr
+# model (8), animation (9) and sound bank (2) entries are not carried across versions: a JP
+# clear save hangs the US game on load when both kinds are kept, and the game reloads them
+# by itself when they are missing (tested on Xbox 360 and xemu).
+RES_DROPPED = (2, 8, 9)
 
 REGIONS = {
     'us': {'file': 'G', 'name': 'Game No.%d', 'label': 'US'},
@@ -124,6 +128,8 @@ def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print, drop_res=
     if save.region != to:
         m = IDMAP[(save.region, to)]
         for i, fid, typ in save.resources():
+            if typ in RES_DROPPED:
+                struct.pack_into('<H', b, RES_TABLE + 8 * i, 0xFFFF); continue
             if fid >= NFILES[save.region]: raise ValueError('resource %d: file id %#x out of range' % (i, fid))
             if fid not in m: raise ValueError('resource %d: file id %#x has no %s counterpart' % (i, fid, REGIONS[to]['label']))
             if m[fid] != fid:

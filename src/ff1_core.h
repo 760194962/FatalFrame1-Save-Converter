@@ -15,7 +15,7 @@ enum { FF1_US = 0, FF1_JP = 1 };
 /* blocks whose signature matches hdkey (0..FF1_NSIG) */
 int  ff1_sig_count(const uint8_t *save, const uint8_t hdkey[16]);
 int  ff1_checksum_ok(const uint8_t *save);
-/* remap file ids (if from != to), fix checksum, re-sign with hdkey.
+/* remap file ids (if from != to; model/animation/sound entries are dropped), fix checksum, re-sign with hdkey.
    returns number of remapped ids, or -1 with bad_index and bad_id set. */
 int  ff1_convert(uint8_t *save, int from, int to, const uint8_t hdkey[16], int *bad_index, int *bad_id);
 /* list loaded file ids; returns count */
