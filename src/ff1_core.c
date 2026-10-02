@@ -75,6 +75,10 @@ int ff1_checksum_ok(const uint8_t *save) { return rd32(save) == hsum(save); }
 
 #define RES_TABLE 0x3C
 #define RES_COUNT 40
+/* model (8), animation (9, 10) and sound bank (2) entries, cleared when clear_res is set:
+   some JP saves (a clear save) hang the US game on load with them kept; without them the
+   game reloads what it needs, but a ghost that was already on screen may be missing. */
+static int res_dropped(int type) { return type == 2 || type == 8 || type == 9 || type == 10; }
 int ff1_resources(const uint8_t *save, int ids[40]) {
     int i, n = 0;
     for (i = 0; i < RES_COUNT; i++) { int id = save[RES_TABLE+8*i] | save[RES_TABLE+8*i+1] << 8; if (id != 0xFFFF) ids[n++] = id; }
@@ -86,18 +90,19 @@ static int map_id(int from, int id) {
     for (i = 0; i < n; i++) if (id >= r[i][0] && id < r[i][0] + r[i][2]) return r[i][1] + (id - r[i][0]);
     return -1;
 }
-int ff1_convert(uint8_t *save, int from, int to, const uint8_t hd[16], int *bad_index, int *bad_id) {
+int ff1_convert(uint8_t *save, int from, int to, const uint8_t hd[16], int clear_res, int *bad_index, int *bad_id) {
     int i, changed = 0; uint32_t s;
     if (from != to) {
         int nfiles = from == FF1_JP ? FF_JP_FILES : FF_US_FILES;
         for (i = 0; i < RES_COUNT; i++) {          /* check all first, so nothing is half-done */
             int id = save[RES_TABLE+8*i] | save[RES_TABLE+8*i+1] << 8;
-            if (id == 0xFFFF) continue;
+            if (id == 0xFFFF || (clear_res && res_dropped(save[RES_TABLE+8*i+2]))) continue;
             if (id >= nfiles || map_id(from, id) < 0) { if (bad_index) *bad_index = i; if (bad_id) *bad_id = id; return -1; }
         }
         for (i = 0; i < RES_COUNT; i++) {
             uint8_t *p = save + RES_TABLE + 8*i; int id = p[0] | p[1] << 8, m;
             if (id == 0xFFFF) continue;
+            if (clear_res && res_dropped(p[2])) { p[0] = p[1] = 0xFF; continue; }
             m = map_id(from, id);
             if (m != id) { p[0] = (uint8_t)m; p[1] = (uint8_t)(m >> 8); changed++; }
         }

@@ -14,21 +14,21 @@
 #include <wchar.h>
 #include "ff1_core.h"
 
-#define APP_TITLE L"FatalFrame1 Save Converter 1.0  -  \x96f6 ~zero~ / Fatal Frame (Xbox) JP \x21c4 US"
+#define APP_TITLE L"FatalFrame1 Save Converter 1.1  -  \x96f6 ~zero~ / Fatal Frame (Xbox) JP \x21c4 US"
 
 enum { ID_SRC = 100, ID_SRC_BR, ID_HD, ID_HD2, ID_US, ID_JP, ID_OUT, ID_OUT_BR, ID_CHECK, ID_CONVERT, ID_LANG, ID_LOG,
-       ID_L_SRC, ID_L_HD, ID_L_HD2, ID_L_TO, ID_L_OUT };
+       ID_L_SRC, ID_L_HD, ID_L_HD2, ID_L_TO, ID_L_OUT, ID_CLEAR };
 
 enum { S_L_SRC, S_L_HD, S_L_HD2, S_L_TO, S_US, S_JP, S_L_OUT, S_BROWSE, S_CHECK, S_CONVERT, S_LANG,
        S_INTRO, S_PICK_SRC, S_PICK_OUT, S_NOSAVES, S_BADKEY, S_BADKEY2, S_NOSRC, S_NOOUT,
        S_OPENFAIL, S_BADSIZE, S_FOUND, S_ITEM, S_SIGOK, S_SIGBAD, S_SIGNOKEY, S_CKBAD, S_NOSLOT,
-       S_UNMAPPED, S_EXISTS, S_WRITEFAIL, S_DONE1, S_SAMEREGION, S_SUMMARY, S_COUNT };
+       S_UNMAPPED, S_EXISTS, S_WRITEFAIL, S_DONE1, S_SAMEREGION, S_SUMMARY, S_NOTARGET, S_CLEAR, S_CLEARED, S_COUNT };
 
 static const wchar_t *STR[2][S_COUNT] = {
 { /* Chinese */
   L"\x6e90\x5b58\x6863\x6587\x4ef6\x5939",                        /* 源存档文件夹 */
-  L"\x6e90\x4e3b\x673a HD Key",                                     /* 源主机 HD Key */
-  L"\x76ee\x6807\x4e3b\x673a HD Key\xff08\x7559\x7a7a = \x540c\x4e0a\xff09", /* 目标主机 HD Key（留空 = 同上） */
+  L"\x6e90\x4e3b\x673a HD Key\xff08\x53ef\x9009\xff09",  /* 源主机 HD Key（可选） */
+  L"\x76ee\x6807\x4e3b\x673a HD Key", /* 目标主机 HD Key */
   L"\x8f6c\x6362\x4e3a",                                            /* 转换为 */
   L"\x7f8e\x7248 (US, \x6587\x4ef6 G)",                             /* 美版 (US, 文件 G) */
   L"\x65e5\x7248 (JP, \x6587\x4ef6 N)",                             /* 日版 (JP, 文件 N) */
@@ -39,7 +39,9 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"English",
   L"\x9009\x4e00\x4e2a\x5b58\x6863\x6587\x4ef6\x5939\xff08\x91cc\x9762\x6709 G \x6216 N\xff09\xff0c\x6216\x8005\x6574\x4e2a 54430004 \x6587\x4ef6\x5939\x3002\r\n"
   L"\x539f\x6587\x4ef6\x4e0d\x4f1a\x88ab\x4fee\x6539\xff0c\x7ed3\x679c\x5199\x5230 \x8f93\x51fa\x6587\x4ef6\x5939\\54430004\\<\x65b0\x6587\x4ef6\x5939\x540d>\x3002\r\n"
-  L"\x6b27\x7248 (PAL) \x5b58\x6863\x4e0d\x652f\x6301\x3002\r\n\r\n",
+  L"\x6b27\x7248 (PAL) \x5b58\x6863\x4e0d\x652f\x6301\x3002\r\n"
+  L"\x6e90 HD Key \x53ea\x7528\x6765\x6821\x9a8c\xff1b\x53ea\x586b\x4e00\x4e2a Key \x65f6\xff0c\x6e90\x548c\x76ee\x6807\x5171\x7528\x3002\r\n"
+  L"\x8f6c\x6362\x540e\x8bfb\x6863\x5361 loading \x7684\x8bdd\xff0c\x52fe\x9009\x300c\x6e05\x7a7a\x9884\x52a0\x8f7d\x2026\x300d\x518d\x8f6c\x4e00\x6b21\x3002\r\n\r\n",
   /* 选一个存档文件夹（里面有 G 或 N），或者整个 54430004 文件夹。 原文件不会被修改，结果写到 输出文件夹\54430004\<新文件夹名>。 欧版 (PAL) 存档不支持。 */
   L"\x9009\x62e9\x6e90\x5b58\x6863\x6587\x4ef6\x5939",              /* 选择源存档文件夹 */
   L"\x9009\x62e9\x8f93\x51fa\x6587\x4ef6\x5939",                    /* 选择输出文件夹 */
@@ -64,13 +66,18 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"  \xff08\x6e90\x548c\x76ee\x6807\x662f\x540c\x4e00\x7248\x672c\xff0c\x53ea\x91cd\x7b7e\xff09\r\n", /* （源和目标是同一版本，只重签） */
   L"\x5b8c\x6210\xff1a%d \x4e2a\x6210\x529f\xff0c%d \x4e2a\x5931\x8d25\x3002\x628a\x8f93\x51fa\x91cc\x7684 54430004 \x6587\x4ef6\x5939\x6574\x4e2a\x653e\x5230\x76ee\x6807\x4e3b\x673a\x3002\r\n\r\n",
   /* 完成：%d 个成功，%d 个失败。把输出里的 54430004 文件夹整个放到目标主机。 */
+  L"\x8bf7\x586b\x76ee\x6807\x4e3b\x673a\x7684 HD Key\x3002\r\n", /* 请填目标主机的 HD Key。 */
+  L"\x6e05\x7a7a\x9884\x52a0\x8f7d\x7684\x6a21\x578b\x3001\x52a8\x753b\x3001\x97f3\x6548\xff08\x8f6c\x6362\x540e\x8bfb\x6863\x5361\x6b7b\x65f6\x518d\x52fe\x9009\xff09", /* 清空预加载的模型、动画、音效（转换后读档卡死时再勾选） */
+  L"  \xff08\x5df2\x6e05\x7a7a\x9884\x52a0\x8f7d\x7684\x6a21\x578b\x3001\x52a8\x753b\x3001\x97f3\x6548\xff09\r\n", /* （已清空预加载的模型、动画、音效） */
 },
 { /* English */
-  L"Source save folder", L"Source HD key", L"Target HD key (empty = same)", L"Convert to",
+  L"Source save folder", L"Source HD key (optional)", L"Target HD key", L"Convert to",
   L"US (file G)", L"JP (file N)", L"Output folder", L"Browse\x2026", L"Check", L"Convert", L"\x4e2d\x6587",
   L"Pick one save folder (holding G or N), or the whole 54430004 folder.\r\n"
   L"Originals are not changed; results go to <output>\\54430004\\<new folder name>.\r\n"
-  L"PAL saves are not supported.\r\n\r\n",
+  L"PAL saves are not supported.\r\n"
+  L"Source HD key only verifies the save; with just one key, it is used for both.\r\n"
+  L"If a converted save hangs on load, tick \"Clear preloaded...\" and convert again.\r\n\r\n",
   L"Choose the source save folder", L"Choose the output folder",
   L"No saves found (need folders that contain a G or N file).\r\n",
   L"Source HD key must be 32 hex digits.\r\n", L"Target HD key is not valid.\r\n",
@@ -89,6 +96,9 @@ static const wchar_t *STR[2][S_COUNT] = {
   L"  \x2192 %ls \"%ls\", %d file id(s) remapped, re-signed\r\n     %ls\r\n",
   L"  (same version as source: re-sign only)\r\n",
   L"Done: %d converted, %d failed. Copy the whole 54430004 folder from the output to the target console.\r\n\r\n",
+  L"Enter the target HD key.\r\n",
+  L"Clear preloaded models/anims/sounds (only if the save hangs on load)",
+  L"  (preloaded models, animations and sounds cleared)\r\n",
 } };
 
 static int lang;
@@ -173,9 +183,9 @@ static void do_work(int convert) {
     HCURSOR old;
     get_text(ID_SRC, src, MAX_PATH); trim_slash(src);
     if (!src[0]) { logw(S(S_NOSRC)); return; }
-    if (get_key(ID_HD, k1, &e1) < 0 || (convert && e1)) { logw(S(S_BADKEY)); return; }
+    if (get_key(ID_HD, k1, &e1) < 0) { logw(S(S_BADKEY)); return; }
     if (get_key(ID_HD2, k2, &e2) < 0) { logw(S(S_BADKEY2)); return; }
-    if (e2) memcpy(k2, k1, 16);
+    if (e2) { if (convert && e1) { logw(S(S_NOTARGET)); return; } memcpy(k2, k1, 16); }
     get_text(ID_OUT, out, MAX_PATH); trim_slash(out);
     if (convert && !out[0]) { logw(S(S_NOOUT)); return; }
     to = IsDlgButtonChecked(hMain, ID_JP) == BST_CHECKED ? FF1_JP : FF1_US;
@@ -185,7 +195,7 @@ static void do_work(int convert) {
     logw(S(S_FOUND), n);
     for (i = 0; i < n; i++) {
         wchar_t which, p[MAX_PATH * 2], name[64] = L"?", od[MAX_PATH * 2];
-        uint16_t nm[64], tn[32]; char fold[13]; DWORD sz, msz; uint8_t *b, *meta; int region, sig = -1, ck, slot = 0, len = -1, tl, bi = 0, bid = 0, ch, j;
+        uint16_t nm[64], tn[32]; char fold[13]; DWORD sz, msz; uint8_t *b, *meta; int region, sig = -1, ck, slot = 0, len = -1, tl, bi = 0, bid = 0, ch, j, clear;
         has_save_file(saves[i], &which);
         region = which == L'G' ? FF1_US : FF1_JP;
         swprintf(p, MAX_PATH * 2, L"%ls\\%lc", saves[i], which);
@@ -201,11 +211,12 @@ static void do_work(int convert) {
         if (!e1) { sig = ff1_sig_count(b, k1); logw(S(sig == FF1_NSIG ? S_SIGOK : S_SIGBAD), sig, FF1_NSIG); }
         else logw(S(S_SIGNOKEY));
         if (!convert) { free(b); continue; }
-        if (sig != FF1_NSIG) { free(b); bad++; continue; }
+        if (!e1 && sig != FF1_NSIG) { free(b); bad++; continue; }
         if (!ck) { logw(S(S_CKBAD)); free(b); bad++; continue; }
         if (!slot) { logw(S(S_NOSLOT)); free(b); bad++; continue; }
         if (region == to) logw(S(S_SAMEREGION));
-        ch = ff1_convert(b, region, to, k2, &bi, &bid);
+        clear = region != to && IsDlgButtonChecked(hMain, ID_CLEAR) == BST_CHECKED;
+        ch = ff1_convert(b, region, to, k2, clear, &bi, &bid);
         if (ch < 0) { logw(S(S_UNMAPPED), bi, bid); free(b); bad++; continue; }
         tl = ff1_save_name(to, slot, tn); ff1_folder_name(tn, tl, fold);
         swprintf(od, MAX_PATH * 2, L"%ls\\54430004", out);
@@ -225,6 +236,7 @@ static void do_work(int convert) {
             for (j = 0; j < tl; j++) tname[j] = tn[j];
             tname[tl] = 0;
             logw(S(S_DONE1), to == FF1_US ? L"US" : L"JP", tname, ch, od);
+            if (clear) logw(S(S_CLEARED));
         }
         free(b); ok++;
     }
@@ -261,18 +273,20 @@ static void apply_lang(void) {
     SetDlgItemTextW(hMain, ID_L_OUT, S(S_L_OUT)); SetDlgItemTextW(hMain, ID_SRC_BR, S(S_BROWSE));
     SetDlgItemTextW(hMain, ID_OUT_BR, S(S_BROWSE)); SetDlgItemTextW(hMain, ID_CHECK, S(S_CHECK));
     SetDlgItemTextW(hMain, ID_CONVERT, S(S_CONVERT)); SetDlgItemTextW(hMain, ID_LANG, S(S_LANG));
+    SetDlgItemTextW(hMain, ID_CLEAR, S(S_CLEAR));
 }
 static HWND mk(const wchar_t *cls, DWORD style, DWORD ex, int id) {
     HWND h = CreateWindowExW(ex, cls, L"", WS_CHILD | WS_VISIBLE | style, 0, 0, 10, 10, hMain, (HMENU)(INT_PTR)id, GetModuleHandleW(NULL), NULL);
     SendMessageW(h, WM_SETFONT, (WPARAM)hFont, TRUE); return h;
 }
 static void layout(int W, int H) {
-    int m = DP(12), lw = DP(230), bh = DP(26), bw = DP(96), gap = DP(8), y = m, x2 = m + lw, ew = W - x2 - m - bw - gap;
+    int m = DP(12), lw = DP(280), bh = DP(26), bw = DP(96), gap = DP(8), y = m, x2 = m + lw, ew = W - x2 - m - bw - gap;
     #define MV(id, x, yy, w, h) MoveWindow(GetDlgItem(hMain, id), x, yy, w, h, TRUE)
     MV(ID_L_SRC, m, y + DP(4), lw, bh); MV(ID_SRC, x2, y, ew, bh); MV(ID_SRC_BR, x2 + ew + gap, y, bw, bh); y += bh + gap;
     MV(ID_L_HD, m, y + DP(4), lw, bh); MV(ID_HD, x2, y, ew, bh); y += bh + gap;
     MV(ID_L_HD2, m, y + DP(4), lw, bh); MV(ID_HD2, x2, y, ew, bh); y += bh + gap;
     MV(ID_L_TO, m, y + DP(4), lw, bh); MV(ID_US, x2, y, DP(170), bh); MV(ID_JP, x2 + DP(180), y, DP(170), bh); y += bh + gap;
+    MV(ID_CLEAR, x2, y, W - x2 - m, bh); y += bh + gap;
     MV(ID_L_OUT, m, y + DP(4), lw, bh); MV(ID_OUT, x2, y, ew, bh); MV(ID_OUT_BR, x2 + ew + gap, y, bw, bh); y += bh + gap + DP(4);
     MV(ID_CHECK, x2, y, bw, DP(30)); MV(ID_CONVERT, x2 + bw + gap, y, bw + DP(20), DP(30)); MV(ID_LANG, W - m - bw, y, bw, DP(30));
     y += DP(30) + gap + DP(4);
@@ -290,6 +304,7 @@ static LRESULT CALLBACK wndproc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         mk(L"STATIC", 0, 0, ID_L_HD); mk(L"EDIT", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_HD);
         mk(L"STATIC", 0, 0, ID_L_HD2); mk(L"EDIT", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_HD2);
         mk(L"STATIC", 0, 0, ID_L_TO); mk(L"BUTTON", BS_AUTORADIOBUTTON | WS_GROUP | WS_TABSTOP, 0, ID_US); mk(L"BUTTON", BS_AUTORADIOBUTTON, 0, ID_JP);
+        mk(L"BUTTON", BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP, 0, ID_CLEAR);
         mk(L"STATIC", 0, 0, ID_L_OUT); mk(L"EDIT", ES_AUTOHSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, ID_OUT); mk(L"BUTTON", WS_TABSTOP, 0, ID_OUT_BR);
         mk(L"BUTTON", WS_TABSTOP, 0, ID_CHECK); mk(L"BUTTON", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, ID_CONVERT); mk(L"BUTTON", WS_TABSTOP, 0, ID_LANG);
         hLog = mk(L"EDIT", ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL, WS_EX_CLIENTEDGE, ID_LOG);
@@ -329,7 +344,7 @@ int WINAPI wWinMain(HINSTANCE hi, HINSTANCE hp, LPWSTR cmd, int show) {
     RegisterClassW(&wc);
     dc = GetDC(NULL); d = GetDeviceCaps(dc, LOGPIXELSY); ReleaseDC(NULL, dc);
     h = CreateWindowExW(0, wc.lpszClassName, APP_TITLE, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                        MulDiv(820, d, 96), MulDiv(600, d, 96), NULL, NULL, hi, NULL);
+                        MulDiv(820, d, 96), MulDiv(640, d, 96), NULL, NULL, hi, NULL);
     ShowWindow(h, show);
     while (GetMessageW(&m, NULL, 0, 0) > 0) {
         if (!IsDialogMessageW(h, &m)) { TranslateMessage(&m); DispatchMessageW(&m); }

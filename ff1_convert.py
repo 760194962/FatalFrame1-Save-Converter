@@ -5,14 +5,14 @@ JP <-> US save converter. Python 3, standard library only.
 
   python ff1_convert.py info    SAVE_DIR [--hdkey KEY]
   python ff1_convert.py convert SAVE_DIR [SAVE_DIR ...] --to us|jp \
-         --hdkey SRC_KEY [--dst-hdkey DST_KEY] [--out OUT_DIR]
+         --dst-hdkey DST_KEY [--hdkey SRC_KEY] [--out OUT_DIR] [--clear-res]
 
 SAVE_DIR is one save folder (holding G or N) or a folder that contains save
 folders (e.g. the 54430004 folder). Output goes to OUT_DIR/54430004/<folder>/.
 """
 import argparse, hmac, hashlib, os, re, shutil, struct, sys
 
-VERSION = '1.0'
+VERSION = '1.1'
 TITLE_ID = '54430004'
 XBOX_CERT_KEY = bytes.fromhex('5C0733AE0401F7E8BA7993FDCD2F1FE0')
 TITLE_KEY = bytes.fromhex('BD1E1C7B4DB4BA8D49E37EA24F80F14E')   # same in JP and US default.xbe
@@ -20,6 +20,10 @@ SAVE_SIZE = 0x2945CC0
 HEADER = 0x5414                     # 4-byte checksum + 29 game globals
 BLOCK, NBLOCK = 0x60000, 0x6E       # photo album blocks
 RES_TABLE, RES_COUNT = 0x3C, 40     # loaded-resource table: u16 file id, u8 type, u8 flag, u32 addr
+# model (8), animation (9, 10) and sound bank (2) entries, cleared with --clear-res: some JP
+# saves (a clear save) hang the US game on load with them kept; without them the game reloads
+# what it needs, but a ghost that was already on screen may be missing.
+RES_DROPPED = (2, 8, 9, 10)   # 10: animation tied to a model by its flag byte
 
 REGIONS = {
     'us': {'file': 'G', 'name': 'Game No.%d', 'label': 'US'},
@@ -109,10 +113,10 @@ def find_saves(paths):
     if not found: raise ValueError('no Fatal Frame save folders found')
     return found
 
-def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print):
+def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print, drop_res=(), clear_res=False):
     """Returns the output folder. Raises ValueError on any problem; nothing is written then."""
     total = NBLOCK + 1
-    ok = save.sig_ok(src_key)
+    ok = save.sig_ok(src_key) if src_key else total  # source key is optional: it only verifies the old signature
     if ok != total:
         raise ValueError('signature check failed (%d/%d blocks). Wrong source HD key, or not a JP/US save '
                          '(PAL saves are not supported).' % (ok, total))
@@ -124,11 +128,16 @@ def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print):
     if save.region != to:
         m = IDMAP[(save.region, to)]
         for i, fid, typ in save.resources():
+            if clear_res and typ in RES_DROPPED:
+                struct.pack_into('<H', b, RES_TABLE + 8 * i, 0xFFFF); continue
             if fid >= NFILES[save.region]: raise ValueError('resource %d: file id %#x out of range' % (i, fid))
             if fid not in m: raise ValueError('resource %d: file id %#x has no %s counterpart' % (i, fid, REGIONS[to]['label']))
             if m[fid] != fid:
                 struct.pack_into('<H', b, RES_TABLE + 8 * i, m[fid]); changed += 1
         struct.pack_into('<I', b, 0, sum(b[4:HEADER]) & 0xFFFFFFFF)
+    for i in drop_res:                      # experiment: forget loaded-resource entry i
+        struct.pack_into('<H', b, RES_TABLE + 8 * i, 0xFFFF)
+    if drop_res: struct.pack_into('<I', b, 0, sum(b[4:HEADER]) & 0xFFFFFFFF)
     for o, n in blocks(): b[o + n:o + n + 20] = sign(bytes(b[o:o + n]), dst_key)
     name = REGIONS[to]['name'] % slot
     od = os.path.join(out_dir, TITLE_ID, folder_name(name))
@@ -137,9 +146,10 @@ def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print):
     with open(os.path.join(od, REGIONS[to]['file']), 'wb') as f: f.write(b)
     with open(os.path.join(od, 'SaveMeta.xbx'), 'wb') as f: f.write(meta_bytes(name))
     if save.image: shutil.copyfile(save.image, os.path.join(od, 'saveimage.xbx'))
-    log('%s [%s "%s"] -> %s [%s "%s"], %d file ids remapped' % (
+    log('%s [%s "%s"] -> %s [%s "%s"], %d file ids remapped%s' % (
         os.path.basename(save.folder), REGIONS[save.region]['label'], save.name, os.path.basename(od),
-        REGIONS[to]['label'], name, changed))
+        REGIONS[to]['label'], name, changed,
+        ', preloaded models/animations/sounds cleared' if clear_res and save.region != to else ''))
     return od
 
 def main(argv=None):
@@ -150,9 +160,12 @@ def main(argv=None):
     c = sub.add_parser('convert', help='convert save folders')
     c.add_argument('saves', nargs='+')
     c.add_argument('--to', required=True, choices=['us', 'jp'])
-    c.add_argument('--hdkey', required=True, help='HD key of the console the save comes from')
-    c.add_argument('--dst-hdkey', help='HD key of the target console (default: same as --hdkey)')
+    c.add_argument('--hdkey', help='HD key of the source console (optional; only verifies the old signature)')
+    c.add_argument('--dst-hdkey', help='HD key of the target console (default: same as --hdkey; one of the two is required)')
     c.add_argument('--out', default='converted', help='output folder (default: ./converted)')
+    c.add_argument('--clear-res', action='store_true',
+                   help='also clear preloaded model/animation/sound entries; use only if the converted save hangs on load')
+    c.add_argument('--drop-res', help='EXPERIMENT: forget these loaded-resource entries, e.g. 0-18 or 7-18 or 9,13,14,18')
     c.add_argument('--slot', type=int, help='slot number to use for the new save name')
     args = ap.parse_args(argv)
     try:
@@ -167,8 +180,16 @@ def main(argv=None):
                 if key: print('  signature %d/%d blocks ok with this HD key' % (s.sig_ok(key), NBLOCK + 1))
                 print('  loaded files: %s' % ' '.join('%#x' % f for i, f, t in s.resources()))
             return 0
-        src = parse_hdkey(args.hdkey); dst = parse_hdkey(args.dst_hdkey) if args.dst_hdkey else src
-        for s in saves: convert(s, args.to, src, dst, args.out, args.slot)
+        src = parse_hdkey(args.hdkey) if args.hdkey else None
+        dst = parse_hdkey(args.dst_hdkey) if args.dst_hdkey else src
+        if not dst: raise ValueError('give --dst-hdkey (or --hdkey if the target console is the same)')
+        drop = ()
+        if args.drop_res:
+            drop = []
+            for part in args.drop_res.split(','):
+                a, _, z = part.partition('-'); drop += range(int(a), int(z or a) + 1)
+            if not 0 <= min(drop) <= max(drop) < RES_COUNT: raise ValueError('--drop-res must be within 0-%d' % (RES_COUNT - 1))
+        for s in saves: convert(s, args.to, src, dst, args.out, args.slot, drop_res=drop, clear_res=args.clear_res)
         return 0
     except ValueError as e:
         print('error: %s' % e, file=sys.stderr); return 1

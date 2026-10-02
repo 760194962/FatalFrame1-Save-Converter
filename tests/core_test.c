@@ -1,5 +1,5 @@
 /* checks the C core against files written by the Python version:
-   core_test SRC_SAVE SRC_META EXPECTED_SAVE from(us|jp) to(us|jp) HDKEY */
+   core_test SRC_SAVE SRC_META EXPECTED_SAVE from(us|jp) to(us|jp) HDKEY [clear] */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +13,7 @@ int main(int c, char **v) {
     if (ff1_parse_hdkey(v[6], hd)) return 3;
     int len = ff1_meta_name(m, mn, name);
     printf("sig %d/%d checksum %d slot %d\n", ff1_sig_count(s, hd), FF1_NSIG, ff1_checksum_ok(s), ff1_slot_from_name(name, len));
-    ch = ff1_convert(s, from, to, hd, &bi, &bid);
+    ch = ff1_convert(s, from, to, hd, c > 7 && !strcmp(v[7], "clear"), &bi, &bid);
     int l2 = ff1_save_name(to, ff1_slot_from_name(name, len), nn); ff1_folder_name(nn, l2, fold);
     printf("changed %d folder %s same_as_expected %d\n", ch, fold, n == en && !memcmp(s, e, n));
     return !(n == en && !memcmp(s, e, n));
