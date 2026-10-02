@@ -109,7 +109,7 @@ def find_saves(paths):
     if not found: raise ValueError('no Fatal Frame save folders found')
     return found
 
-def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print):
+def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print, drop_res=()):
     """Returns the output folder. Raises ValueError on any problem; nothing is written then."""
     total = NBLOCK + 1
     ok = save.sig_ok(src_key) if src_key else total  # source key is optional: it only verifies the old signature
@@ -129,6 +129,9 @@ def convert(save, to, src_key, dst_key, out_dir, slot=None, log=print):
             if m[fid] != fid:
                 struct.pack_into('<H', b, RES_TABLE + 8 * i, m[fid]); changed += 1
         struct.pack_into('<I', b, 0, sum(b[4:HEADER]) & 0xFFFFFFFF)
+    for i in drop_res:                      # experiment: forget loaded-resource entry i
+        struct.pack_into('<H', b, RES_TABLE + 8 * i, 0xFFFF)
+    if drop_res: struct.pack_into('<I', b, 0, sum(b[4:HEADER]) & 0xFFFFFFFF)
     for o, n in blocks(): b[o + n:o + n + 20] = sign(bytes(b[o:o + n]), dst_key)
     name = REGIONS[to]['name'] % slot
     od = os.path.join(out_dir, TITLE_ID, folder_name(name))
@@ -153,6 +156,7 @@ def main(argv=None):
     c.add_argument('--hdkey', help='HD key of the source console (optional; only verifies the old signature)')
     c.add_argument('--dst-hdkey', help='HD key of the target console (default: same as --hdkey; one of the two is required)')
     c.add_argument('--out', default='converted', help='output folder (default: ./converted)')
+    c.add_argument('--drop-res', help='EXPERIMENT: forget these loaded-resource entries, e.g. 0-18 or 7-18 (see info)')
     c.add_argument('--slot', type=int, help='slot number to use for the new save name')
     args = ap.parse_args(argv)
     try:
@@ -170,7 +174,11 @@ def main(argv=None):
         src = parse_hdkey(args.hdkey) if args.hdkey else None
         dst = parse_hdkey(args.dst_hdkey) if args.dst_hdkey else src
         if not dst: raise ValueError('give --dst-hdkey (or --hdkey if the target console is the same)')
-        for s in saves: convert(s, args.to, src, dst, args.out, args.slot)
+        drop = ()
+        if args.drop_res:
+            a, _, z = args.drop_res.partition('-'); drop = range(int(a), int(z or a) + 1)
+            if not 0 <= min(drop) <= max(drop) < RES_COUNT: raise ValueError('--drop-res must be within 0-%d' % (RES_COUNT - 1))
+        for s in saves: convert(s, args.to, src, dst, args.out, args.slot, drop_res=drop)
         return 0
     except ValueError as e:
         print('error: %s' % e, file=sys.stderr); return 1
