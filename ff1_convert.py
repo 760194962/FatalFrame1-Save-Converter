@@ -156,7 +156,7 @@ def main(argv=None):
     c.add_argument('--hdkey', help='HD key of the source console (optional; only verifies the old signature)')
     c.add_argument('--dst-hdkey', help='HD key of the target console (default: same as --hdkey; one of the two is required)')
     c.add_argument('--out', default='converted', help='output folder (default: ./converted)')
-    c.add_argument('--drop-res', help='EXPERIMENT: forget these loaded-resource entries, e.g. 0-18 or 7-18 (see info)')
+    c.add_argument('--drop-res', help='EXPERIMENT: forget these loaded-resource entries, e.g. 0-18 or 7-18 or 9,13,14,18')
     c.add_argument('--slot', type=int, help='slot number to use for the new save name')
     args = ap.parse_args(argv)
     try:
@@ -176,7 +176,9 @@ def main(argv=None):
         if not dst: raise ValueError('give --dst-hdkey (or --hdkey if the target console is the same)')
         drop = ()
         if args.drop_res:
-            a, _, z = args.drop_res.partition('-'); drop = range(int(a), int(z or a) + 1)
+            drop = []
+            for part in args.drop_res.split(','):
+                a, _, z = part.partition('-'); drop += range(int(a), int(z or a) + 1)
             if not 0 <= min(drop) <= max(drop) < RES_COUNT: raise ValueError('--drop-res must be within 0-%d' % (RES_COUNT - 1))
         for s in saves: convert(s, args.to, src, dst, args.out, args.slot, drop_res=drop)
         return 0
