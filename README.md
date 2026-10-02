@@ -29,11 +29,13 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 - 两版 `default.xbe` 证书里的存档签名密钥相同：`BD1E1C7B4DB4BA8D49E37EA24F80F14E`。
 - 存档文件 `0x2945CC0` 字节，分成 1 个开头块（`0x5414` 字节）和 110 个数据块（各 `0x60000` 字节，前 100 个是相册照片，读档时写到 `Z:\ffphoto###`），每块后面跟 20 字节非漫游签名。
 - 开头块由 29 个游戏全局变量拼成，两版的数量、大小、顺序完全一样。开头 4 字节是开头块其余字节的和。
-- 开头块 `0x3C` 起是 40 条已加载文件记录（每条 8 字节：`u16 文件序号, u8 类型, u8 标志, u32 地址`）。地图、事件、敌人这类记录改文件序号；模型（类型 8）、动画（类型 9、10）、音效（类型 2）的记录直接清空，见下一条。
+- 开头块 `0x3C` 起是 40 条已加载文件记录（每条 8 字节：`u16 文件序号, u8 类型, u8 标志, u32 地址`）。日→美默认只改这里的文件序号；勾选「清空预加载…」时，模型（类型 8）、动画（类型 9、10）、音效（类型 2）的记录会被清空，见下一条。
 - 存档文件夹名由存档名算出（XCreateSaveGame）：对 UTF-16 存档名做 `h = (h * 0x10000 + c) mod (2^48 - 59)`，输出 12 位十六进制。
 - 日→美实测：4 个日版存档转换后在 Xbox 360 上用美版游戏读档正常。
-- 日版通关档（第 4 章最终战）只改序号的话，美版读档会卡在开头画面（Xbox 360 和 xemu 都卡）。只要同时保留模型/动画和音效记录就会卡，任意清空一类就能进。清空这几类后游戏会自己重新加载，实测画面和声音都正常。原因还没完全查清，所以跨版本转换时一律清空这三类。
-- 因为清空了上述记录，来回转换不再和原文件逐字节相同，但保留的记录能还原。
+- 有的日版存档只改序号还不够：一个通关档（第 4 章最终战）转成美版后读档卡在开头画面（Xbox 360 和 xemu 都卡）。只要同时保留模型/动画和音效记录就会卡，清空任意一类就能进；清空后游戏会自己重新加载，画面和声音正常。原因还没查清。
+- 但清空不能当默认：一个第一章的中途存档清空后，原本在场的鬼魂模型不见了；只改序号则完全正常。所以默认只改序号，读档卡死时再勾选「清空预加载…」重新转换。
+- 动画记录（类型 9、10）靠「标志」字节绑定到对应的模型，所以清空时模型和动画必须一起清空，否则读档也会卡。
+- 默认模式下，美→日→美、日→美→日来回转换都和原文件的开头块逐字节相同。
 
 ### 尚不确定的事
 
@@ -57,6 +59,7 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 3. 点「检查」，确认每个存档的签名都是 `111/111 ✓`。
 4. 点「转换」。结果写到 `输出文件夹\54430004\<新文件夹名>\`，原存档不动。输出文件夹已存在且不为空时不会覆盖。
 5. 把输出里的整个 `54430004` 文件夹放到目标主机的 `UDATA` 下。
+6. 如果读档卡在 loading，勾选「清空预加载的模型、动画、音效」，换个空的输出文件夹再转一次。这个模式下，读档时已经在场的鬼魂可能不出现。
 
 源和目标选同一版本时只重签，可用来在两台主机之间搬存档。
 
@@ -64,7 +67,7 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 
 ```
 python ff1_convert.py info    54430004 --hdkey SRC_HDKEY
-python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SRC_HDKEY] --out converted
+python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SRC_HDKEY] [--clear-res] --out converted
 ```
 
 `54430004` 可以换成单个存档文件夹，也可以写多个。读不出存档编号时用 `--slot N` 指定。
@@ -117,11 +120,13 @@ The tool remaps those IDs by file name, fixes the header checksum, re-signs with
 - The save signature key in both `default.xbe` certificates is `BD1E1C7B4DB4BA8D49E37EA24F80F14E`.
 - Save file is `0x2945CC0` bytes: one header block (`0x5414` bytes) and 110 data blocks (`0x60000` bytes each; the first 100 are album photos, written to `Z:\ffphoto###` on load), each followed by a 20-byte non-roamable signature.
 - The header is 29 game globals; count, sizes and order are identical in both builds. Its first 4 bytes are the byte sum of the rest.
-- Header offset `0x3C`: 40 loaded-file records (8 bytes: `u16 file id, u8 type, u8 flag, u32 address`). Map, event and enemy records get their file IDs remapped; model (type 8), animation (types 9, 10) and sound bank (type 2) records are cleared, see below.
+- Header offset `0x3C`: 40 loaded-file records (8 bytes: `u16 file id, u8 type, u8 flag, u32 address`). JP→US changes these file IDs by default; with "Clear preloaded..." ticked, model (type 8), animation (types 9, 10) and sound bank (type 2) records are cleared, see below.
 - Save folder name (XCreateSaveGame): over the UTF-16 save name, `h = (h * 0x10000 + c) mod (2^48 - 59)`, printed as 12 hex digits.
 - JP→US: four JP saves converted this way load in the US game on Xbox 360 (backward compatibility).
-- A JP clear save (final chapter) with only the IDs remapped hangs the US game on its opening screen (Xbox 360 and xemu). It hangs only while both the model/animation and the sound records are kept; clearing either kind is enough. With them cleared the game reloads them itself; picture and sound were fine in testing. The root cause is not fully known, so cross-version conversion always clears these three kinds.
-- Because of that, round trips are no longer byte-identical; the records that are kept do come back unchanged.
+- Remapping IDs is not always enough: one JP clear save (final chapter) hangs the US game on its opening screen (Xbox 360 and xemu). It hangs only while both the model/animation and the sound records are kept; clearing either kind is enough, and the game then reloads what it needs with picture and sound intact. The root cause is not known.
+- Clearing is not the default: a JP chapter 1 save lost a ghost that should be on screen when cleared, but worked fine with only the IDs remapped. So the default only remaps IDs; tick "Clear preloaded..." and convert again if a save hangs on load.
+- Animation records (types 9, 10) are bound to their model by the flag byte, so models and animations must be cleared together, or loading hangs as well.
+- In the default mode, US→JP→US and JP→US→JP round trips give a byte-identical header.
 
 ### Not verified
 
@@ -145,6 +150,7 @@ You need: the save folder (the whole `54430004` folder or one save folder in it)
 3. Click **Check**; every save should show `signature 111/111 ✓`.
 4. Click **Convert**. Results go to `<output>\54430004\<new folder>\`; originals are not touched and an existing non-empty folder is never overwritten.
 5. Copy the whole `54430004` folder from the output into the target console's `UDATA`.
+6. If the save hangs on load, tick "Clear preloaded models/anims/sounds" and convert again into an empty output folder. In this mode a ghost that was already on screen may not appear.
 
 Choosing the same version as the source only re-signs, which moves a save between consoles.
 
@@ -152,7 +158,7 @@ Choosing the same version as the source only re-signs, which moves a save betwee
 
 ```
 python ff1_convert.py info    54430004 --hdkey SRC_HDKEY
-python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SRC_HDKEY] --out converted
+python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SRC_HDKEY] [--clear-res] --out converted
 ```
 
 Pass one or more save folders or `54430004` folders. Use `--slot N` if the slot number cannot be read from `SaveMeta.xbx`.
