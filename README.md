@@ -47,10 +47,13 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 
 ### 下载
 
-- **Windows**：[`bin/FatalFrame1-Save-Converter.exe`](bin/FatalFrame1-Save-Converter.exe)，单文件带界面，支持高 DPI，中英文界面（右下角切换，或用 `--en` / `--zh` 启动）。
-- **所有系统**：[`ff1_convert.py`](ff1_convert.py)，只需 Python 3，不用装任何库。
+- **图形界面**：[`ff1_gui.py`](ff1_gui.py) + [`ff1_convert.py`](ff1_convert.py)（两个文件放在同一文件夹），只需 Python 3，不用装任何库。Windows、macOS、Linux 都能用，支持高 DPI，中英文界面（右下角切换，或用 `--en` / `--zh` 启动）。
+- **命令行**：只用 [`ff1_convert.py`](ff1_convert.py)。
 
-### 使用方法（exe）
+### 使用方法（图形界面）
+
+运行 `python ff1_gui.py`（Windows 装好 Python 后也可以直接双击）。Linux 如果提示没有 tkinter，先装 `python3-tk`。
+
 
 需要准备：存档文件夹（整个 `54430004` 文件夹或其中一个存档文件夹）；目标主机的 XboxHDKey（必填）；源主机的 XboxHDKey（可选，只用来校验原存档，不填也能转换）。
 
@@ -72,7 +75,7 @@ python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SR
 
 `54430004` 可以换成单个存档文件夹，也可以写多个。读不出存档编号时用 `--slot N` 指定。
 
-### 自己编译 Windows 版
+### 自己编译 Windows 原生版（可选）
 
 ```
 x86_64-w64-mingw32-windres src/app.rc -O coff -o src/app.res
@@ -138,10 +141,13 @@ The tool remaps those IDs by file name, fixes the header checksum, re-signs with
 
 ### Download
 
-- **Windows**: [`bin/FatalFrame1-Save-Converter.exe`](bin/FatalFrame1-Save-Converter.exe), single-file GUI, DPI aware, English / Chinese (toggle bottom right, or start with `--en` / `--zh`).
-- **Any OS**: [`ff1_convert.py`](ff1_convert.py), Python 3 standard library only.
+- **GUI**: [`ff1_gui.py`](ff1_gui.py) + [`ff1_convert.py`](ff1_convert.py) (keep both in one folder), Python 3 standard library only. Windows, macOS and Linux; DPI aware, English / Chinese (toggle bottom right, or start with `--en` / `--zh`).
+- **Command line**: [`ff1_convert.py`](ff1_convert.py) alone.
 
-### Usage (exe)
+### Usage (GUI)
+
+Run `python ff1_gui.py` (on Windows with Python installed you can also double-click it). On Linux, install `python3-tk` if tkinter is missing.
+
 
 You need: the save folder (the whole `54430004` folder or one save folder in it), and the target console's XboxHDKey (required); the source console's XboxHDKey is optional and only verifies the original signature.
 
@@ -163,7 +169,7 @@ python ff1_convert.py convert 54430004 --to us --dst-hdkey DST_HDKEY [--hdkey SR
 
 Pass one or more save folders or `54430004` folders. Use `--slot N` if the slot number cannot be read from `SaveMeta.xbx`.
 
-### Build (Windows exe)
+### Build a native Windows exe (optional)
 
 ```
 x86_64-w64-mingw32-windres src/app.rc -O coff -o src/app.res
