@@ -7,7 +7,7 @@ Runs on Windows, macOS and Linux. The conversion itself is in ff1_convert.py.
 """
 import locale, os, queue, sys, threading
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, font as tkfont, ttk
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ff1_convert as ff
@@ -163,7 +163,7 @@ class App:
         self.log_w.grid(row=0, column=0, sticky='nsew'); sb.grid(row=0, column=1, sticky='ns')
 
         self.apply_lang()
-        self.log(self.S('intro'))
+        self.show_intro()
         root.after(50, self.pump)
 
     # ---- text
@@ -177,8 +177,16 @@ class App:
     def toggle_lang(self):
         self.lang = 'en' if self.lang == 'zh' else 'zh'
         self.apply_lang()
+        if not self.log_used: self.show_intro()
+
+    def show_intro(self):
+        self.log_w.configure(state='normal')
+        self.log_w.delete('1.0', 'end')
+        self.log(self.S('intro'))
+        self.log_used = False   # intro only: re-shown in the new language on toggle
 
     def log(self, s):
+        self.log_used = True
         self.log_w.configure(state='normal')
         self.log_w.insert('end', s)
         self.log_w.see('end')
@@ -298,6 +306,12 @@ def main():
         except Exception:
             pass
     root = tk.Tk()
+    if sys.platform == 'win32':
+        # Segoe UI has no CJK glyphs, so mixed zh/en text falls back per character; YaHei covers both
+        fam = next((f for f in ('Microsoft YaHei UI', 'Microsoft YaHei') if f in tkfont.families(root)), None)
+        if fam:
+            for n in ('TkDefaultFont', 'TkTextFont', 'TkMenuFont', 'TkHeadingFont', 'TkCaptionFont', 'TkTooltipFont'):
+                tkfont.nametofont(n).configure(family=fam)
     try: ttk.Style(root).theme_use('vista' if sys.platform == 'win32' else 'clam' if sys.platform.startswith('linux') else 'aqua')
     except tk.TclError: pass
     App(root)
