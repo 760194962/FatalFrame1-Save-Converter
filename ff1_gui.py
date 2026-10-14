@@ -5,7 +5,7 @@ Runs on Windows, macOS and Linux. The conversion itself is in ff1_convert.py.
 
   python ff1_gui.py [--en | --zh]
 """
-import locale, os, queue, sys, threading
+import json, locale, os, queue, sys, threading
 import tkinter as tk
 from tkinter import filedialog, font as tkfont, ttk
 
@@ -20,10 +20,13 @@ STR = {
         'us': '美版 (US, 文件 G)', 'jp': '日版 (JP, 文件 N)', 'l_out': '输出文件夹', 'browse': '浏览…',
         'check': '检查', 'convert': '转换', 'lang': 'English',
         'clear': '清空预加载的模型、动画、音效（转换后读档卡死时再勾选）',
+        'l_slot': '存档编号', 'keep': '不变',
+        'multislot': '指定存档编号时只能选一个存档文件夹（找到了 %d 个）。\n',
         'intro': '选一个存档文件夹（里面有 G 或 N），或者整个 54430004 文件夹。\n'
                  '原文件不会被修改，结果写到 输出文件夹/54430004/<新文件夹名>。\n'
                  '欧版 (PAL) 存档不支持。\n'
                  '源 HD Key 只用来校验；只填一个 Key 时，源和目标共用。\n'
+                 '「存档编号」可以把存档移到另一格（1–8），例如 1 号存成 8 号。\n'
                  '转换后读档卡 loading 的话，勾选「清空预加载…」再转一次。\n\n',
         'pick_src': '选择源存档文件夹', 'pick_out': '选择输出文件夹',
         'nosaves': '没有找到存档（需要有 G 或 N 文件的文件夹）。\n',
@@ -50,10 +53,13 @@ STR = {
         'us': 'US (file G)', 'jp': 'JP (file N)', 'l_out': 'Output folder', 'browse': 'Browse…',
         'check': 'Check', 'convert': 'Convert', 'lang': '中文',
         'clear': 'Clear preloaded models/anims/sounds (only if the save hangs on load)',
+        'l_slot': 'Slot', 'keep': 'same',
+        'multislot': 'A slot number can only be set for a single save folder (found %d).\n',
         'intro': 'Pick one save folder (holding G or N), or the whole 54430004 folder.\n'
                  'Originals are not changed; results go to <output>/54430004/<new folder name>.\n'
                  'PAL saves are not supported.\n'
                  'Source HD key only verifies the save; with just one key, it is used for both.\n'
+                 '"Slot" moves the save to another slot (1-8), e.g. save No.1 as No.8.\n'
                  'If a converted save hangs on load, tick "Clear preloaded..." and convert again.\n\n',
         'pick_src': 'Choose the source save folder', 'pick_out': 'Choose the output folder',
         'nosaves': 'No saves found (need folders that contain a G or N file).\n',
@@ -112,6 +118,21 @@ def unmapped(save, to, clear):
     return None
 
 
+CONFIG = os.path.join(os.path.expanduser('~'), '.ff1_converter.json')
+
+
+def load_config():
+    try:
+        with open(CONFIG, encoding='utf-8') as f: return json.load(f)
+    except (OSError, ValueError): return {}
+
+
+def save_config(cfg):
+    try:
+        with open(CONFIG, 'w', encoding='utf-8') as f: json.dump(cfg, f)
+    except OSError: pass
+
+
 class App:
     def __init__(self, root):
         self.root, self.lang = root, default_lang()
@@ -127,7 +148,10 @@ class App:
         f.rowconfigure(8, weight=1)
         self.w = {}
         self.src, self.hd, self.hd2, self.out = (tk.StringVar() for _ in range(4))
-        self.to, self.clear = tk.StringVar(value='us'), tk.BooleanVar()
+        self.cfg = load_config()
+        self.to, self.clear = tk.StringVar(value='jp' if self.cfg.get('to') == 'jp' else 'us'), tk.BooleanVar()
+        self.to.trace_add('write', lambda *_: self.remember_to())
+        self.slot = tk.StringVar()
         pad = dict(padx=4, pady=4)
 
         def label(key, row):
@@ -143,7 +167,10 @@ class App:
         label('l_to', 3)
         rb = ttk.Frame(f); rb.grid(row=3, column=1, sticky='w', **pad)
         self.w['us'] = ttk.Radiobutton(rb, variable=self.to, value='us'); self.w['us'].pack(side='left', padx=(0, 24))
-        self.w['jp'] = ttk.Radiobutton(rb, variable=self.to, value='jp'); self.w['jp'].pack(side='left')
+        self.w['jp'] = ttk.Radiobutton(rb, variable=self.to, value='jp'); self.w['jp'].pack(side='left', padx=(0, 32))
+        self.w['l_slot'] = ttk.Label(rb); self.w['l_slot'].pack(side='left', padx=(0, 6))
+        self.w['slot'] = ttk.Combobox(rb, textvariable=self.slot, state='readonly', width=6)
+        self.w['slot'].pack(side='left')
         self.w['clear'] = ttk.Checkbutton(f, variable=self.clear)
         self.w['clear'].grid(row=4, column=1, columnspan=2, sticky='w', **pad)
         label('l_out', 5)
@@ -170,8 +197,11 @@ class App:
     def S(self, k): return STR[self.lang][k]
 
     def apply_lang(self):
-        for k in ('l_src', 'l_hd', 'l_hd2', 'l_to', 'us', 'jp', 'clear', 'l_out', 'check', 'convert', 'lang'):
+        for k in ('l_src', 'l_hd', 'l_hd2', 'l_to', 'us', 'jp', 'l_slot', 'clear', 'l_out', 'check', 'convert', 'lang'):
             self.w[k].configure(text=self.S(k))
+        cur = self.slot.get()
+        self.w['slot'].configure(values=[self.S('keep')] + [str(i) for i in range(1, 9)])
+        self.slot.set(cur if cur.isdigit() else self.S('keep'))
         self.w['br_src'].configure(text=self.S('browse')); self.w['br_out'].configure(text=self.S('browse'))
 
     def toggle_lang(self):
@@ -209,11 +239,10 @@ class App:
         p = os.path.normpath(p)
         self.src.set(p)
         self.default_out(p)
-        w = save_file(p)
-        if not w:
-            try: w = save_file(ff.find_saves([p])[0])
-            except (ValueError, OSError): w = None
-        if w: self.to.set('jp' if w == 'G' else 'us')
+
+    def remember_to(self):
+        self.cfg['to'] = self.to.get()
+        save_config(self.cfg)
 
     def pick_out(self):
         p = filedialog.askdirectory(title=self.S('pick_out'), initialdir=self.out.get() or None)
@@ -245,11 +274,13 @@ class App:
         if convert and not out: return self.log(self.S('noout'))
         try: folders = ff.find_saves([src])
         except (ValueError, OSError): return self.log(self.S('nosaves'))
+        slot = int(self.slot.get()) if self.slot.get().isdigit() else None
+        if convert and slot and len(folders) > 1: return self.log(self.S('multislot') % len(folders))
         self.set_busy(True)
-        args = (folders, convert, k1, k2, out, self.to.get(), self.clear.get(), dict(STR[self.lang]))
+        args = (folders, convert, k1, k2, out, self.to.get(), slot, self.clear.get(), dict(STR[self.lang]))
         threading.Thread(target=self.work, args=args, daemon=True).start()
 
-    def work(self, folders, convert, k1, k2, out, to, clear, S):
+    def work(self, folders, convert, k1, k2, out, to, new_slot, clear, S):
         log, ok, bad = self.q.put, 0, 0
         try:
             log(S['found'] % len(folders))
@@ -268,7 +299,7 @@ class App:
                 if not convert: continue
                 if sig is not None and sig != ff.NBLOCK + 1: bad += 1; continue
                 if not ck: log(S['ckbad']); bad += 1; continue
-                slot = s.slot()
+                slot = new_slot or s.slot()
                 if not slot: log(S['noslot']); bad += 1; continue
                 if s.region == to: log(S['same'])
                 um = unmapped(s, to, clear)

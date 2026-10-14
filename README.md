@@ -57,7 +57,7 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 
 需要准备：存档文件夹（整个 `54430004` 文件夹或其中一个存档文件夹）；目标主机的 XboxHDKey（必填）；源主机的 XboxHDKey（可选，只用来校验原存档，不填也能转换）。
 
-1. 「源存档文件夹」选存档文件夹，或者整个 `54430004` 文件夹（会转换里面所有存档）。输出文件夹会自动填好，「转换为」会自动选成另一个版本。
+1. 「源存档文件夹」选存档文件夹，或者整个 `54430004` 文件夹（会转换里面所有存档）。输出文件夹会自动填好。「转换为」要自己选，程序会记住上次的选择。
 2. 填目标主机的 HD Key。源主机的 HD Key 可填可不填，填了会先校验原存档的签名；只填源 Key 则视为同一台主机。
 3. 点「检查」，确认每个存档的签名都是 `111/111 ✓`。
 4. 点「转换」。结果写到 `输出文件夹\54430004\<新文件夹名>\`，原存档不动。输出文件夹已存在且不为空时不会覆盖。
@@ -65,6 +65,8 @@ Convert **Fatal Frame / 零 ~zero~** (Original Xbox, TitleID `54430004`) saves b
 6. 如果读档卡在 loading，勾选「清空预加载的模型、动画、音效」，换个空的输出文件夹再转一次。这个模式下，读档时已经在场的鬼魂可能不出现。
 
 源和目标选同一版本时只重签，可用来在两台主机之间搬存档。
+
+「存档编号」默认「不变」。选 1–8 可以把存档移到另一格，例如 1 号存成 8 号（只能选单个存档文件夹）。原来那格的存档不会删除，不要的话在主机上删掉。换编号后能否正常读档还没在主机上实测过。
 
 ### Python / 命令行
 
@@ -151,7 +153,7 @@ Run `python ff1_gui.py` (on Windows with Python installed you can also double-cl
 
 You need: the save folder (the whole `54430004` folder or one save folder in it), and the target console's XboxHDKey (required); the source console's XboxHDKey is optional and only verifies the original signature.
 
-1. Pick the source save folder, or the whole `54430004` folder to convert every save in it. The output folder is filled in and "Convert to" is set to the other version.
+1. Pick the source save folder, or the whole `54430004` folder to convert every save in it. The output folder is filled in. Choose "Convert to" yourself; the last choice is remembered.
 2. Enter the target HD key. The source HD key is optional and only verifies the original signature; if you fill only the source key, it is used as the target too.
 3. Click **Check**; every save should show `signature 111/111 ✓`.
 4. Click **Convert**. Results go to `<output>\54430004\<new folder>\`; originals are not touched and an existing non-empty folder is never overwritten.
@@ -159,6 +161,8 @@ You need: the save folder (the whole `54430004` folder or one save folder in it)
 6. If the save hangs on load, tick "Clear preloaded models/anims/sounds" and convert again into an empty output folder. In this mode a ghost that was already on screen may not appear.
 
 Choosing the same version as the source only re-signs, which moves a save between consoles.
+
+"Slot" defaults to "same". Pick 1–8 to move the save to another slot, e.g. save No.1 as No.8 (single save folder only). The save in the old slot is not deleted; remove it on the console if you no longer want it. Loading a save after changing its slot has not been tested on a console yet.
 
 ### Python / command line
 
